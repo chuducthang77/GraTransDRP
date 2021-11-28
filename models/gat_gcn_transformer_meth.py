@@ -7,11 +7,11 @@ from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 
 # GCN-CNN based model
 
-class GAT_GCN_Transformer_meth_only(torch.nn.Module):
+class GAT_GCN_Transformer_meth(torch.nn.Module):
     def __init__(self, n_output=1, num_features_xd=78, num_features_xt=25,
                  n_filters=32, embed_dim=128, output_dim=128, dropout=0.2):
 
-        super(GAT_GCN_Transformer_meth_only, self).__init__()
+        super(GAT_GCN_Transformer_meth, self).__init__()
 
         self.n_output = n_output
         self.encoder_layer_1 = nn.TransformerEncoderLayer(d_model=num_features_xd, nhead=1, dropout=0.5)
@@ -53,7 +53,7 @@ class GAT_GCN_Transformer_meth_only(torch.nn.Module):
         # self.fc1_xt_ge = nn.Linear(384, output_dim)
 
         # combined layers
-        self.fc1 = nn.Linear(2*output_dim, 1024)
+        self.fc1 = nn.Linear(3*output_dim, 1024)
         self.fc2 = nn.Linear(1024, 128)
         self.out = nn.Linear(128, n_output)
 
@@ -80,19 +80,19 @@ class GAT_GCN_Transformer_meth_only(torch.nn.Module):
         x = self.fc_g2(x)
 
         # target_mut input feed-forward:
-        # target_mut = data.target_mut
-        # target_mut = target_mut[:,None,:]
-        # conv_xt_mut = self.conv_xt_mut_1(target_mut)
-        # conv_xt_mut = F.relu(conv_xt_mut)
-        # conv_xt_mut = self.pool_xt_mut_1(conv_xt_mut)
-        # conv_xt_mut = self.conv_xt_mut_2(conv_xt_mut)
-        # conv_xt_mut = F.relu(conv_xt_mut)
-        # conv_xt_mut = self.pool_xt_mut_2(conv_xt_mut)
-        # conv_xt_mut = self.conv_xt_mut_3(conv_xt_mut)
-        # conv_xt_mut = F.relu(conv_xt_mut)
-        # conv_xt_mut = self.pool_xt_mut_3(conv_xt_mut)
-        # xt_mut = conv_xt_mut.view(-1, conv_xt_mut.shape[1] * conv_xt_mut.shape[2])
-        # xt_mut = self.fc1_xt_mut(xt_mut)
+        target_mut = data.target_mut
+        target_mut = target_mut[:,None,:]
+        conv_xt_mut = self.conv_xt_mut_1(target_mut)
+        conv_xt_mut = F.relu(conv_xt_mut)
+        conv_xt_mut = self.pool_xt_mut_1(conv_xt_mut)
+        conv_xt_mut = self.conv_xt_mut_2(conv_xt_mut)
+        conv_xt_mut = F.relu(conv_xt_mut)
+        conv_xt_mut = self.pool_xt_mut_2(conv_xt_mut)
+        conv_xt_mut = self.conv_xt_mut_3(conv_xt_mut)
+        conv_xt_mut = F.relu(conv_xt_mut)
+        conv_xt_mut = self.pool_xt_mut_3(conv_xt_mut)
+        xt_mut = conv_xt_mut.view(-1, conv_xt_mut.shape[1] * conv_xt_mut.shape[2])
+        xt_mut = self.fc1_xt_mut(xt_mut)
 
         target_meth = data.target_meth
         target_meth = target_meth[:,None,:]
@@ -111,7 +111,7 @@ class GAT_GCN_Transformer_meth_only(torch.nn.Module):
 
 
         # concat
-        xc = torch.cat((x, xt_meth), 1)
+        xc = torch.cat((x, xt_mut, xt_meth), 1)
         # add some dense layers
         xc = self.fc1(xc)
         xc = self.relu(xc)

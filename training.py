@@ -11,17 +11,10 @@ from models.ginconv import GINConvNet
 from models.gat_gcn_transformer import GAT_GCN_Transformer
 from models.gat_gcn_transformer_ge_only import GAT_GCN_Transformer_ge_only
 from models.gat_gcn_transformer_meth_only import GAT_GCN_Transformer_meth_only
-from models.gat_gcn_transformer_VAE import GAT_GCN_Transformer_VAE
-from models.gat_gcn_transformer_PCA import GAT_GCN_Transformer_PCA
-from models.gat_gcn_transformer_VAE_batch import GAT_GCN_Transformer_VAE_batch
-from models.gat_gcn_transformer_NN import GAT_GCN_Transformer_NN
-from models.gat_gcn_transformer_NN_shallow import GAT_GCN_Transformer_NN_shallow
-from models.gat_gcn_transformer_NN_meth_ge import GAT_GCN_Transformer_NN_meth_ge
 from models.gat_gcn_transformer_meth_ge import GAT_GCN_Transformer_meth_ge
 from models.gat_gcn_transformer_meth import GAT_GCN_Transformer_meth
 from models.gat_gcn_transformer_ge import GAT_GCN_Transformer_ge
 from models.gat_gcn_transformer_meth_ge_mut import GAT_GCN_Transformer_meth_ge_mut
-from models.gat_gcn_transformer_AE_batch import GAT_GCN_Transformer_AE_batch
 from utils import *
 import datetime
 import argparse
@@ -152,7 +145,7 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='train model')
-    parser.add_argument('--model', type=int, required=False, default=0,     help='0: GINConvNet, 1: GATNet, 2: GAT_GCN, 3: GCNNet')
+    parser.add_argument('--model', type=int, required=False, default=0,     help='0: Transformer_ge_mut_meth, 1: Transformer_ge_mut, 2: Transformer_meth_mut, 3: Transformer_meth_ge, 4: Transformer_ge, 5: Transformer_mut, 6: Transformer_meth')
     parser.add_argument('--train_batch', type=int, required=False, default=32,  help='Batch size training set')
     parser.add_argument('--val_batch', type=int, required=False, default=32, help='Batch size validation set')
     parser.add_argument('--test_batch', type=int, required=False, default=32, help='Batch size test set')
@@ -163,7 +156,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    modeling = [GAT_GCN_Transformer_meth_ge_mut]
+    modeling = [GAT_GCN_Transformer_meth_ge_mut, GAT_GCN_Transformer_ge, GAT_GCN_Transformer_meth, GAT_GCN_Transformer_meth_ge, GAT_GCN_Transformer_ge_only, GAT_GCN_Transformer, GAT_GCN_Transformer_meth_only][args.model]
+    model = [modeling]
     train_batch = args.train_batch
     val_batch = args.val_batch
     test_batch = args.test_batch
@@ -172,4 +166,4 @@ if __name__ == "__main__":
     log_interval = args.log_interval
     cuda_name = args.cuda_name
 
-    main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interval, cuda_name)
+    main(model, train_batch, val_batch, test_batch, lr, num_epoch, log_interval, cuda_name)

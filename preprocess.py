@@ -11,12 +11,21 @@ from collections import OrderedDict
 from rdkit import Chem
 from rdkit.Chem import MolFromSmiles
 import networkx as nx
+from torch._C import device
 from utils import *
 import random
 import pickle
 import sys
 import matplotlib.pyplot as plt
 import argparse
+from sklearn.decomposition import PCA, KernelPCA
+from sklearn.manifold import  Isomap
+import torch
+import torch.nn as nn
+from torch import optim
+from torch.utils.data import Dataset, DataLoader
+import matplotlib.pyplot as plt
+
 
 def is_not_float(string_list):
     try:
@@ -301,7 +310,7 @@ def save_cell_oge_matrix():
             cell_dict[cell_name] = []
 
     min = 0
-    max = 0
+    max = 12
     for line in f.readlines():
         elements = line.split("\t")
         if len(elements) < 2:
@@ -317,7 +326,7 @@ def save_cell_oge_matrix():
             if value < min:
                 min = value
             if max < value:
-                max = value
+                value = max
             cell_dict[cell_name].append(value)
     #print(min)
     #print(max)
@@ -329,18 +338,87 @@ def save_cell_oge_matrix():
         cell_feature.append(np.asarray(cell_dict[cell_name]))
     
     cell_feature = np.asarray(cell_feature)
+    # cell_feature = cell_feature.flatten()
+    # print(cell_feature.shape)
+    # print((cell_feature > 11.5).sum())
+    # plt.hist(cell_feature.flatten())
+    # plt.show()
+    # exit()
+    i = 0
+    for cell in list(cell_dict.keys()):
+        cell_dict[cell] = i
+        i += 1
 
     # print(len(list(cell_dict.values())))
     # exit()
     #print(cell_dict['910927'][23])
     return cell_dict, cell_feature
 
+def train(model, device, train_loader, optimizer, epoch, log_interval, model_st):
+    print('Training on {} samples...'.format(len(train_loader.dataset)))
+    model.train()
+    loss_fn = nn.CrossEntropyLoss()
+    loss_ae = nn.MSELoss()
+    avg_loss = []
+    weight_fn = 0.01
+    weight_ae = 2
+    for batch_idx, data in enumerate(train_loader):
+        data = data.to(device)
+        optimizer.zero_grad()
+        #For non-variational autoencoder
+        if 'VAE' not in model_st:
+            output, _ = model(data)
+            loss = loss_fn(output, data.y.view(-1, 1).float().to(device))
+        else:
+        #For variation autoencoder
+            output, _, decode, log_var, mu = model(data)
+            loss = weight_fn*loss_fn(output, data.y.view(-1, 1).float().to(device)) + loss_ae(decode, data.target_mut[:,None,:].float().to(device)) + torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+        loss.backward()
+        optimizer.step()
+        avg_loss.append(loss.item())
+        if batch_idx % log_interval == 0:
+            print('Train epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(epoch,
+                                                                           batch_idx * len(data.x),
+                                                                           len(train_loader.dataset),
+                                                                           100. * batch_idx / len(train_loader),
+                                                                           loss.item()))
+    return sum(avg_loss)/len(avg_loss)
+
+def predicting(model, device, loader, model_st):
+    model.eval()
+    total_preds = torch.Tensor()
+    total_labels = torch.Tensor()
+    print('Make prediction for {} samples...'.format(len(loader.dataset)))
+    with torch.no_grad():
+        for data in loader:
+            data = data.to(device)
+            #Non-variational autoencoder
+            if 'VAE' not in model_st:
+                output, _ = model(data)
+            else:
+            #Variational autoencoder
+                output, _, decode, log_var, mu = model(data)
+            total_preds = torch.cat((total_preds, output.cpu()), 0)
+            total_labels = torch.cat((total_labels, data.y.view(-1, 1).cpu()), 0)
+    return total_labels.numpy().flatten(),total_preds.numpy().flatten()
 
 
 """
 This part is used to extract the drug - cell interaction strength. it contains IC50, AUC, Max conc, RMSE, Z_score
 """
-def save_mix_drug_cell_matrix():
+class DataBuilder(Dataset):
+    def __init__(self, cell_feature_ge):
+        self.cell_feature_ge = cell_feature_ge
+        self.cell_feature_ge = torch.FloatTensor(self.cell_feature_ge)
+        self.len = self.cell_feature_ge[0]
+    
+    def __getitem__(self, index):
+        return self.cell_feature_ge[index]
+
+    def __len__(self):
+        return self.len
+
+def save_mix_drug_cell_matrix(choice):
     f = open(folder + "PANCANCER_IC.csv")
     reader = csv.reader(f)
     next(reader)
@@ -376,17 +454,27 @@ def save_mix_drug_cell_matrix():
     lst_cell = []
     random.shuffle(temp_data)
 
+    if choice == 0:
+        # Kernel PCA
+        kpca = KernelPCA(n_components=1000, kernel='rbf', gamma=131, random_state=42)
+        cell_feature_ge = kpca.fit_transform(cell_feature_ge)
+    elif choice == 1:
+        # PCA
+        pca = PCA(n_components=1000)
+        cell_feature_ge = pca.fit_transform(cell_feature_ge)
+    else:
+        #Isomap
+        isomap = Isomap(n_components=480)
+        cell_feature_ge = isomap.fit_transform(cell_feature_ge)
+
     for data in temp_data:
         drug, cell, ic50 = data
         if drug in drug_dict and cell in cell_dict_ge and cell in cell_dict_meth:
             xd.append(drug_smile[drug_dict[drug]])
-            xc_ge.append(cell_dict_ge[cell])
+            xc_mut.append(cell_feature_mut[cell_dict_mut[cell]])
+            xc_ge.append(cell_feature_ge[cell_dict_ge[cell]])
             xc_meth.append(cell_feature_meth[cell_dict_meth[cell]])
 
-
-            #nc = np.concatenate((cell_feature_mut[cell_dict_mut[cell]], cell_dict_ge[cell]), axis=None)
-            #xc_mut.append(nc)
-            # xc_mut.append(cell_feature_mut[cell_dict_mut[cell]])
             y.append(ic50)
             bExist[drug_dict[drug], cell_dict_mut[cell]] = 1
             
@@ -396,9 +484,9 @@ def save_mix_drug_cell_matrix():
     with open('drug_dict', 'wb') as fp:
         pickle.dump(drug_dict, fp)
 
-    # xd, xc_mut, xc_meth, xc_ge, y = np.asarray(xd), np.asarray(xc_mut), np.asarray(xc_meth), np.asarray(xc_ge), np.asarray(y)
     xd = np.asarray(xd)
-    xc_ge = np.asarray(xc_ge, dtype='float32')
+    xc_mut = np.asarray(xc_mut)
+    xc_ge = np.asarray(xc_ge)
     xc_meth = np.asarray(xc_meth)
     y = np.asarray(y)
 
@@ -423,7 +511,9 @@ def save_mix_drug_cell_matrix():
     xc_meth_val = xc_meth[size:size1]
     xc_meth_test = xc_meth[size1:]
     
-
+    xc_mut_train = xc_mut[:size]
+    xc_mut_val = xc_mut[size:size1]
+    xc_mut_test = xc_mut[size1:]
     
     
     y_train = y[:size]
@@ -433,263 +523,14 @@ def save_mix_drug_cell_matrix():
     dataset = 'GDSC'
     print('preparing ', dataset + '_train.pt in pytorch format!')
 
-    train_data = TestbedDataset(root='data', dataset=dataset+'_train_mix', xd=xd_train, xt_ge=xc_ge_train, xt_meth=xc_meth_train, y=y_train, smile_graph=smile_graph)
-    val_data = TestbedDataset(root='data', dataset=dataset+'_val_mix', xd=xd_val, xt_ge=xc_ge_val, xt_meth=xc_meth_val, y=y_val, smile_graph=smile_graph)
-    test_data = TestbedDataset(root='data', dataset=dataset+'_test_mix', xd=xd_test, xt_ge=xc_ge_test, xt_meth=xc_meth_test, y=y_test, smile_graph=smile_graph)
+    train_data = TestbedDataset(root='data', dataset=dataset+'_train_mix', xd=xd_train, xt_ge=xc_ge_train, xt_meth=xc_meth_train, xt_mut=xc_mut_train, y=y_train, smile_graph=smile_graph)
+    val_data = TestbedDataset(root='data', dataset=dataset+'_val_mix', xd=xd_val, xt_ge=xc_ge_val, xt_meth=xc_meth_val,xt_mut=xc_mut_val, y=y_val, smile_graph=smile_graph)
+    test_data = TestbedDataset(root='data', dataset=dataset+'_test_mix', xd=xd_test, xt_ge=xc_ge_test, xt_meth=xc_meth_test, xt_mut=xc_mut_test, y=y_test, smile_graph=smile_graph)
     print("build data complete")
-
-def save_blind_drug_matrix():
-    f = open(folder + "PANCANCER_IC.csv")
-    reader = csv.reader(f)
-    next(reader)
-
-    cell_dict, cell_feature = save_cell_mut_matrix()
-    drug_dict, drug_smile, smile_graph = load_drug_smile()
-
-    matrix_list = []
-
-    temp_data = []
-
-    xd_train = []
-    xc_train = []
-    y_train = []
-
-    xd_val = []
-    xc_val = []
-    y_val = []
-
-    xd_test = []
-    xc_test = []
-    y_test = []
-
-    xd_unknown = []
-    xc_unknown = []
-    y_unknown = []
-
-    dict_drug_cell = {}
-
-    bExist = np.zeros((len(drug_dict), len(cell_dict)))
-
-    for item in reader:
-        drug = item[0]
-        cell = item[3]
-        ic50 = item[8]
-        ic50 = 1 / (1 + pow(math.exp(float(ic50)), -0.1))
-        
-        temp_data.append((drug, cell, ic50))
-
-    random.shuffle(temp_data)
-    
-    for data in temp_data:
-        drug, cell, ic50 = data
-        if drug in drug_dict and cell in cell_dict:
-            if drug in dict_drug_cell:
-                dict_drug_cell[drug].append((cell, ic50))
-            else:
-                dict_drug_cell[drug] = [(cell, ic50)]
-            
-            bExist[drug_dict[drug], cell_dict[cell]] = 1
-
-    lstDrugTest = []
-    print(len(dict_drug_cell))
-    # size = int(len(dict_drug_cell) * 0.8)
-    # size1 = int(len(dict_drug_cell) * 0.9)
-    # pos = 0
-    # for drug,values in dict_drug_cell.items():
-        # pos += 1
-        # for v in values:
-            # cell, ic50 = v
-            # if pos < size:
-                # xd_train.append(drug_smile[drug_dict[drug]])
-                # xc_train.append(cell_feature[cell_dict[cell]])
-                # y_train.append(ic50)
-            # elif pos < size1:
-                # xd_val.append(drug_smile[drug_dict[drug]])
-                # xc_val.append(cell_feature[cell_dict[cell]])
-                # y_val.append(ic50)
-            # else:
-                # xd_test.append(drug_smile[drug_dict[drug]])
-                # xc_test.append(cell_feature[cell_dict[cell]])
-                # y_test.append(ic50)
-                # lstDrugTest.append(drug)
-
-    # with open('drug_bind_test', 'wb') as fp:
-        # pickle.dump(lstDrugTest, fp)
-    
-    # print(len(y_train), len(y_val), len(y_test))
-
-    # xd_train, xc_train, y_train = np.asarray(xd_train), np.asarray(xc_train), np.asarray(y_train)
-    # xd_val, xc_val, y_val = np.asarray(xd_val), np.asarray(xc_val), np.asarray(y_val)
-    # xd_test, xc_test, y_test = np.asarray(xd_test), np.asarray(xc_test), np.asarray(y_test)
-
-    # dataset = 'GDSC'
-    # print('preparing ', dataset + '_train.pt in pytorch format!')
-    # train_data = TestbedDataset(root='data', dataset=dataset+'_train_blind', xd=xd_train, xt=xc_train, y=y_train, smile_graph=smile_graph)
-    # val_data = TestbedDataset(root='data', dataset=dataset+'_val_blind', xd=xd_val, xt=xc_val, y=y_val, smile_graph=smile_graph)
-    # test_data = TestbedDataset(root='data', dataset=dataset+'_test_blind', xd=xd_test, xt=xc_test, y=y_test, smile_graph=smile_graph)
-
-
-def save_blind_cell_matrix():
-    f = open(folder + "PANCANCER_IC.csv")
-    reader = csv.reader(f)
-    next(reader)
-
-    cell_dict, cell_feature = save_cell_mut_matrix()
-    drug_dict, drug_smile, smile_graph = load_drug_smile()
-
-    matrix_list = []
-
-    temp_data = []
-
-    xd_train = []
-    xc_train = []
-    y_train = []
-
-    xd_val = []
-    xc_val = []
-    y_val = []
-
-    xd_test = []
-    xc_test = []
-    y_test = []
-
-    xd_unknown = []
-    xc_unknown = []
-    y_unknown = []
-
-    dict_drug_cell = {}
-
-    bExist = np.zeros((len(drug_dict), len(cell_dict)))
-
-    for item in reader:
-        drug = item[0]
-        cell = item[3]
-        ic50 = item[8]
-        ic50 = 1 / (1 + pow(math.exp(float(ic50)), -0.1))
-        
-        temp_data.append((drug, cell, ic50))
-
-    random.shuffle(temp_data)
-    
-    for data in temp_data:
-        drug, cell, ic50 = data
-        if drug in drug_dict and cell in cell_dict:
-            if cell in dict_drug_cell:
-                dict_drug_cell[cell].append((drug, ic50))
-            else:
-                dict_drug_cell[cell] = [(drug, ic50)]
-            
-            bExist[drug_dict[drug], cell_dict[cell]] = 1
-
-    lstCellTest = []
-
-    size = int(len(dict_drug_cell) * 0.8)
-    size1 = int(len(dict_drug_cell) * 0.9)
-    pos = 0
-    for cell,values in dict_drug_cell.items():
-        pos += 1
-        for v in values:
-            drug, ic50 = v
-            if pos < size:
-                xd_train.append(drug_smile[drug_dict[drug]])
-                xc_train.append(cell_feature[cell_dict[cell]])
-                y_train.append(ic50)
-            elif pos < size1:
-                xd_val.append(drug_smile[drug_dict[drug]])
-                xc_val.append(cell_feature[cell_dict[cell]])
-                y_val.append(ic50)
-            else:
-                xd_test.append(drug_smile[drug_dict[drug]])
-                xc_test.append(cell_feature[cell_dict[cell]])
-                y_test.append(ic50)
-                lstCellTest.append(cell)
-
-    with open('cell_bind_test', 'wb') as fp:
-        pickle.dump(lstCellTest, fp)
-    
-    print(len(y_train), len(y_val), len(y_test))
-
-    xd_train, xc_train, y_train = np.asarray(xd_train), np.asarray(xc_train), np.asarray(y_train)
-    xd_val, xc_val, y_val = np.asarray(xd_val), np.asarray(xc_val), np.asarray(y_val)
-    xd_test, xc_test, y_test = np.asarray(xd_test), np.asarray(xc_test), np.asarray(y_test)
-
-    dataset = 'GDSC'
-    print('preparing ', dataset + '_train.pt in pytorch format!')
-    train_data = TestbedDataset(root='data', dataset=dataset+'_train_cell_blind', xd=xd_train, xt=xc_train, y=y_train, smile_graph=smile_graph)
-    val_data = TestbedDataset(root='data', dataset=dataset+'_val_cell_blind', xd=xd_val, xt=xc_val, y=y_val, smile_graph=smile_graph)
-    test_data = TestbedDataset(root='data', dataset=dataset+'_test_cell_blind', xd=xd_test, xt=xc_test, y=y_test, smile_graph=smile_graph)
-
-def save_best_individual_drug_cell_matrix():
-    f = open(folder + "PANCANCER_IC.csv")
-    reader = csv.reader(f)
-    next(reader)
-
-    cell_dict, cell_feature = save_cell_mut_matrix()
-    drug_dict, drug_smile, smile_graph = load_drug_smile()
-
-    matrix_list = []
-
-    temp_data = []
-
-    xd_train = []
-    xc_train = []
-    y_train = []
-
-    dict_drug_cell = {}
-
-    bExist = np.zeros((len(drug_dict), len(cell_dict)))
-    i=0
-    for item in reader:
-        drug = item[0]
-        cell = item[3]
-        ic50 = item[8]
-        ic50 = 1 / (1 + pow(math.exp(float(ic50)), -0.1))
-        
-        if drug == "Bortezomib":
-            temp_data.append((drug, cell, ic50))
-    random.shuffle(temp_data)
-    
-    for data in temp_data:
-        drug, cell, ic50 = data
-        if drug in drug_dict and cell in cell_dict:
-            if drug in dict_drug_cell:
-                dict_drug_cell[drug].append((cell, ic50))
-            else:
-                dict_drug_cell[drug] = [(cell, ic50)]
-            
-            bExist[drug_dict[drug], cell_dict[cell]] = 1
-    cells = []
-    for drug,values in dict_drug_cell.items():
-        for v in values:
-            cell, ic50 = v
-            xd_train.append(drug_smile[drug_dict[drug]])
-            xc_train.append(cell_feature[cell_dict[cell]])
-            y_train.append(ic50)
-            cells.append(cell)
-
-    xd_train, xc_train, y_train = np.asarray(xd_train), np.asarray(xc_train), np.asarray(y_train)
-    with open('cell_blind_sal', 'wb') as fp:
-        pickle.dump(cells, fp)
-    dataset = 'GDSC'
-    print('preparing ', dataset + '_train.pt in pytorch format!')
-    train_data = TestbedDataset(root='data', dataset=dataset+'_bortezomib', xd=xd_train, xt=xc_train, y=y_train, smile_graph=smile_graph, saliency_map=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='prepare dataset to train model')
-    parser.add_argument('--choice', type=int, required=False, default=0, help='0.mix test, 1.saliency value, 2.drug blind, 3.cell blind')
+    parser.add_argument('--choice', type=int, required=True, default=0, help='0.KernelPCA, 1.PCA, 2.Isomap')
     args = parser.parse_args()
     choice = args.choice
-    if choice == 0:
-        # save mix test dataset
-        save_mix_drug_cell_matrix()
-    elif choice == 1:
-        # save saliency map dataset
-        save_best_individual_drug_cell_matrix()
-    elif choice == 2:
-        # save blind drug dataset
-        save_blind_drug_matrix()
-    elif choice == 3:
-        # save blind cell dataset
-        save_blind_cell_matrix()
-    else:
-        print("Invalide option, choose 0 -> 4")
+    save_mix_drug_cell_matrix(choice)

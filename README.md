@@ -4,10 +4,9 @@
 
 ###  source codes:
 + preprocess.py: create data in pytorch format
-+ preprocess_ge.py: create and preprocess gene expression data in pytorch format
 + utils.py: include TestbedDataset used by create_data.py to create data, performance measures and functions to draw loss, pearson by epoch.
-+ models/ginconv.py, gat_gcn.py, gat_gcn_transfromer: proposed models GINConvNet, GAT_GCN, GAT_GCN_Transformer receiving graphs as input for drugs.
-+ training.py: train a GraTransDRP model.
++ models/ginconv.py, gat.py, gat_gcn.py, and gcn.py: proposed models GINConvNet, GATNet, GAT_GCN, and GCNNet receiving graphs as input for drugs.
++ training.py: train a GraphDRP model.
 + saliancy_map.py: run this to get saliency value.
 
 
@@ -29,6 +28,8 @@ python preprocess.py --choice 0
 choice:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0: create mixed test dataset
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1: create saliency map dataset
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2: create blind drug dataset
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3: create blind cell dataset
 
 This returns file pytorch format (.pt) stored at data/processed including training, validation, test set.
 
@@ -38,8 +39,9 @@ python training.py --model 0 --train_batch 1024 --val_batch 1024 --test_batch 10
 ```
 model:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1: GINConvNet
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2: GAT_GCN
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3: GAT_GCN_Transformer
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2: GATNet
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3: GAT_GCN
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4: GCNNet
 
 To train a model using training data. The model is chosen if it gains the best MSE for testing data. 
 
