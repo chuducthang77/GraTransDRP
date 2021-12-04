@@ -32,7 +32,7 @@ choice:
 
 This returns file pytorch format (.pt) stored at data/processed including training, validation, test set.
 
-## 2. Train a GraphDRP model
+## 2. Train a GraTransDRP model
 ```sh
 python training.py --model 0 --train_batch 1024 --val_batch 1024 --test_batch 1024 --lr 0.0001 --num_epoch 300 --log_interval 20 --cuda_name "cuda:0"
 ```
@@ -49,9 +49,3 @@ model:
 To train a model using training data. The model is chosen if it gains the best MSE for testing data. 
 
 This returns the model and result files for the modelling achieving the best MSE for testing data throughout the training.
-
-## 3. Get saliency value 
-```sh
-python saliency_map.py --model 0 --num_feature 10 --processed_data_file "data/processed/GDSC_bortezomib.pt" --model_file "model_GAT_GCN_Transformer_GDSC.model" --cuda_name "cuda:0"
-```
-The model and model_file must be the same kind of graph neural network. This outputs most important abberations with corresponding saliency value.
