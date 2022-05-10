@@ -530,7 +530,7 @@ def save_mix_drug_cell_matrix(choice):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='prepare dataset to train model')
-    parser.add_argument('--choice', type=int, required=True, default=0, help='0.KernelPCA, 1.PCA, 2.Isomap')
+    parser.add_argument('--choice', type=int, required=False, default=0, help='0.KernelPCA, 1.PCA, 2.Isomap')
     args = parser.parse_args()
     choice = args.choice
     save_mix_drug_cell_matrix(choice)

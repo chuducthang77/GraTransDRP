@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 class TestbedDataset(InMemoryDataset):
     def __init__(self, root='/tmp', dataset='davis', 
                  xd=None, xt_ge=None, xt_meth=None, xt_mut=None, y=None, transform=None,
-                 pre_transform=None,smile_graph=None,saliency_map=False):
+                 pre_transform=None,smile_graph=None,saliency_map=False, test_drug_dict = None):
 
         #root is required for save preprocessed data, default is '/tmp'
         super(TestbedDataset, self).__init__(root, transform, pre_transform)
@@ -22,7 +22,7 @@ class TestbedDataset(InMemoryDataset):
             self.data, self.slices = torch.load(self.processed_paths[0])
         else:
             print('Pre-processed data {} not found, doing pre-processing...'.format(self.processed_paths[0]))
-            self.process(xd, xt_ge, xt_meth,xt_mut, y, smile_graph)
+            self.process(xd, xt_ge, xt_meth,xt_mut, y, smile_graph, test_drug_dict)
             self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property
@@ -50,10 +50,11 @@ class TestbedDataset(InMemoryDataset):
     # \param XD - chuỗi SMILES, XT: danh sách các đối tượng đã được mã hóa encoded target (categorical or one-hot),
     # \param Y: list of labels (i.e. affinity)
     # \return: PyTorch-Geometric format processed data
-    def process(self, xd, xt_ge, xt_meth, xt_mut,  y, smile_graph):
+    def process(self, xd, xt_ge, xt_meth, xt_mut,  y, smile_graph, test_drug_dict):
         assert (len(xd) == len(xt_ge) and len(xt_ge) == len(y)) and len(y) == len(xt_meth) and len(xt_meth) == len(xt_mut) , "The four lists must be the same length!"
         data_list = []
         data_len = len(xd)
+        print(data_len)
         for i in range(data_len):
             print('Converting SMILES to graph: {}/{}'.format(i+1, data_len))
             smiles = xd[i]
@@ -130,6 +131,9 @@ def rmse(y,f):
 def mse(y,f):
     mse = ((y - f)**2).mean(axis=0)
     return mse
+def mse_cust(y,f):
+    mse = ((y - f)**2)
+    return mse
 def pearson(y,f):
     rp = np.corrcoef(y, f)[0,1]
     return rp
@@ -158,6 +162,22 @@ def ci(y,f):
         j = i-1
     ci = S/z
     return ci
+
+def draw_cust_mse(mse_dict):
+    best_mse = []
+    best_mse_title = []
+    i = 0
+    for (key, value) in mse_dict.items():
+        if i < 10 or (i > 13 and i < 24):
+            best_mse.append(value)
+            best_mse_title.append(key)
+        i += 1
+
+    plt.bar(best_mse_title, best_mse)
+    plt.xticks(rotation=90)
+    plt.title('GE & METH')
+    plt.ylabel('MSE')
+    plt.show()
 
 def draw_loss(train_losses, test_losses, title):
     plt.figure()

@@ -50,7 +50,7 @@ class GAT_GCN_Transformer_meth_ge(torch.nn.Module):
         self.pool_xt_ge_2 = nn.MaxPool1d(3)
         self.conv_xt_ge_3 = nn.Conv1d(in_channels=n_filters * 2, out_channels=n_filters * 4, kernel_size=8)
         self.pool_xt_ge_3 = nn.MaxPool1d(3)
-        self.fc1_xt_ge = nn.Linear(1920, output_dim)
+        self.fc1_xt_ge = nn.Linear(4224, output_dim)
 
         # combined layers
         self.fc1 = nn.Linear(3*output_dim, 1024)
