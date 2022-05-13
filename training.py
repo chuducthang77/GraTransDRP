@@ -125,6 +125,8 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
             result_file_name = 'result_' + model_st + '_' + dataset +  '.csv'
             loss_fig_name = 'model_' + model_st + '_' + dataset + '_loss'
             pearson_fig_name = 'model_' + model_st + '_' + dataset + '_pearson'
+            test_drug_result = {}
+
             for epoch in range(num_epoch):
                 train_loss = train(model, device, train_loader, optimizer, epoch+1, log_interval, model_st)
                 G,P = predicting(model, device, val_loader, model_st)
@@ -134,7 +136,6 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
 
                 mse_res = mse_cust(G_test,P_test)
                 mse_arr = []
-                test_drug_result = {}
                 for values in test_drug_dict.values():
                     temp_mse = 0
                     for i in range(int(values)):
@@ -145,8 +146,6 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
                 for i in range(len(test_drug_dict.keys())):
                     test_drug_result[list(test_drug_dict.keys())[i]] = mse_arr[i]
                 test_drug_result = dict(sorted(test_drug_result.items(), key=lambda item: item[1]))
-
-                draw_cust_mse(test_drug_result)
 
                 train_losses.append(train_loss)
                 val_losses.append(ret[1])
@@ -168,6 +167,7 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
                     print(' no improvement since epoch ', best_epoch, '; best_mse, best pearson:', best_mse, best_pearson, model_st, dataset)
             draw_loss(train_losses, val_losses, loss_fig_name)
             draw_pearson(val_pearsons, pearson_fig_name)
+            draw_cust_mse(test_drug_result)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='train model')
