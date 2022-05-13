@@ -126,9 +126,9 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
             loss_fig_name = 'model_' + model_st + '_' + dataset + '_loss'
             pearson_fig_name = 'model_' + model_st + '_' + dataset + '_pearson'
             for epoch in range(num_epoch):
-                # train_loss = train(model, device, train_loader, optimizer, epoch+1, log_interval, model_st)
-                # G,P = predicting(model, device, val_loader, model_st)
-                # ret = [rmse(G,P),mse(G,P),pearson(G,P),spearman(G,P)]
+                train_loss = train(model, device, train_loader, optimizer, epoch+1, log_interval, model_st)
+                G,P = predicting(model, device, val_loader, model_st)
+                ret = [rmse(G,P),mse(G,P),pearson(G,P),spearman(G,P)]
                 G_test,P_test = predicting(model, device, test_loader, model_st)
                 ret_test = [rmse(G_test,P_test),mse(G_test,P_test),pearson(G_test,P_test),spearman(G_test,P_test)]
 
@@ -147,7 +147,6 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
                 test_drug_result = dict(sorted(test_drug_result.items(), key=lambda item: item[1]))
 
                 draw_cust_mse(test_drug_result)
-                exit()
 
                 train_losses.append(train_loss)
                 val_losses.append(ret[1])
