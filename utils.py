@@ -177,7 +177,7 @@ def draw_cust_mse(mse_dict):
     plt.xticks(rotation=90)
     plt.title('GE & METH')
     plt.ylabel('MSE')
-    plt.show()
+    plt.savefig("Blind drug.png")
 
 def draw_loss(train_losses, test_losses, title):
     plt.figure()
