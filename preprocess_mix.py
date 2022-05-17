@@ -432,6 +432,7 @@ def save_mix_drug_cell_matrix(choice):
 
     # print(cell_feature_ge.shape)
     drug_dict, drug_smile, smile_graph = load_drug_smile()
+
     temp_data = []
 
     # xem lai cai nay nao
@@ -451,8 +452,7 @@ def save_mix_drug_cell_matrix(choice):
     y = []
     lst_drug = []
     lst_cell = []
-    
-    # random.shuffle(temp_data)
+    random.shuffle(temp_data)
 
     if choice == 0:
         # Kernel PCA
@@ -467,9 +467,6 @@ def save_mix_drug_cell_matrix(choice):
         isomap = Isomap(n_components=480)
         cell_feature_ge = isomap.fit_transform(cell_feature_ge)
 
-    test_drug_list = []
-    temp_test_drug = None
-    value = 1
     for data in temp_data:
         drug, cell, ic50 = data
         if drug in drug_dict and cell in cell_dict_ge and cell in cell_dict_meth:
@@ -483,14 +480,6 @@ def save_mix_drug_cell_matrix(choice):
             
             lst_drug.append(drug)
             lst_cell.append(cell)
-            if temp_test_drug != drug:
-                temp_test_drug = drug
-                value = 1
-                test_drug_list.append([drug, value])
-            else:
-                value +=1 
-                test_drug_list.append([drug, value])
-    
 
     with open('drug_dict', 'wb') as fp:
         pickle.dump(drug_dict, fp)
@@ -500,8 +489,7 @@ def save_mix_drug_cell_matrix(choice):
     xc_ge = np.asarray(xc_ge)
     xc_meth = np.asarray(xc_meth)
     y = np.asarray(y)
-    test_drug_list = np.asarray(test_drug_list)
-    
+
     size = int(xd.shape[0] * 0.8)
     size1 = int(xd.shape[0] * 0.9)
 
@@ -531,10 +519,7 @@ def save_mix_drug_cell_matrix(choice):
     y_train = y[:size]
     y_val = y[size:size1]
     y_test = y[size1:]
-    
-    test_drug_list = test_drug_list[size1:]
-    print(test_drug_list)
-    np.save('test_drug_mix', test_drug_list)
+
     dataset = 'GDSC'
     print('preparing ', dataset + '_train.pt in pytorch format!')
 

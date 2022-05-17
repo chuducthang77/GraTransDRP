@@ -79,16 +79,6 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
 
     print('Learning rate: ', lr)
     print('Epochs: ', num_epoch)
-    test_drug = np.load('test_drug_mix.npy')
-    test_drug_dict = {}
-    temp = None
-    for drug in test_drug:
-        if temp != drug[0]:
-            temp = drug[0]
-            test_drug_dict[drug[0]] = 1
-        else:
-            test_drug_dict[drug[0]] += 1
-
     for model in modeling:
         model_st = model.__name__
         dataset = 'GDSC'
@@ -96,7 +86,7 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
         val_losses = []
         val_pearsons = []
         print('\nrunning on ', model_st + '_' + dataset )
-        processed_data_file_train    = 'data/processed/' + dataset + '_train_mix'+'.pt'
+        processed_data_file_train = 'data/processed/' + dataset + '_train_mix'+'.pt'
         processed_data_file_val = 'data/processed/' + dataset + '_val_mix'+'.pt'
         processed_data_file_test = 'data/processed/' + dataset + '_test_mix'+'.pt'
         if ((not os.path.isfile(processed_data_file_train)) or (not os.path.isfile(processed_data_file_val)) or (not os.path.isfile(processed_data_file_test))):
@@ -105,19 +95,19 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
             train_data = TestbedDataset(root='data', dataset=dataset+'_train_mix')
             val_data = TestbedDataset(root='data', dataset=dataset+'_val_mix')
             test_data = TestbedDataset(root='data', dataset=dataset+'_test_mix')
-            
+
             # make data PyTorch mini-batch processing ready
             train_loader = DataLoader(train_data, batch_size=train_batch, shuffle=True)
             val_loader = DataLoader(val_data, batch_size=val_batch, shuffle=False)
             test_loader = DataLoader(test_data, batch_size=test_batch, shuffle=False)
             print("CPU/GPU: ", torch.cuda.is_available())
+                    
             # training the model
             device = torch.device(cuda_name if torch.cuda.is_available() else "cpu")
             print(device)
             model = model().to(device)
             optimizer = torch.optim.Adam(model.parameters(), lr=lr)
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
-            best_cust_mse = None
             best_mse = 1000
             best_pearson = 1
             best_epoch = -1
@@ -125,33 +115,19 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
             result_file_name = 'result_' + model_st + '_' + dataset +  '.csv'
             loss_fig_name = 'model_' + model_st + '_' + dataset + '_loss'
             pearson_fig_name = 'model_' + model_st + '_' + dataset + '_pearson'
-            test_drug_result = {}
-
             for epoch in range(num_epoch):
                 train_loss = train(model, device, train_loader, optimizer, epoch+1, log_interval, model_st)
                 G,P = predicting(model, device, val_loader, model_st)
                 ret = [rmse(G,P),mse(G,P),pearson(G,P),spearman(G,P)]
+                            
                 G_test,P_test = predicting(model, device, test_loader, model_st)
                 ret_test = [rmse(G_test,P_test),mse(G_test,P_test),pearson(G_test,P_test),spearman(G_test,P_test)]
-
-                mse_res = mse_cust(G_test,P_test)
-                mse_arr = []
-                for values in test_drug_dict.values():
-                    temp_mse = 0
-                    for i in range(int(values)):
-                        temp_mse += mse_res[i]
-                    temp_mse /= int(values)
-                    mse_arr.append(temp_mse)
-
-                for i in range(len(test_drug_dict.keys())):
-                    test_drug_result[list(test_drug_dict.keys())[i]] = mse_arr[i]
-                test_drug_result = dict(sorted(test_drug_result.items(), key=lambda item: item[1]))
 
                 train_losses.append(train_loss)
                 val_losses.append(ret[1])
                 val_pearsons.append(ret[2])
 
-                # Reduce Learning rate on Plateau for the validation loss
+                #Reduce Learning rate on Plateau for the validation loss
                 scheduler.step(ret[1])
 
                 if ret[1]<best_mse:
@@ -166,16 +142,15 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
                     print(' no improvement since epoch ', best_epoch, '; best_mse, best pearson:', best_mse, best_pearson, model_st, dataset)
             draw_loss(train_losses, val_losses, loss_fig_name)
             draw_pearson(val_pearsons, pearson_fig_name)
-            
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='train model')
-    parser.add_argument('--model', type=int, required=False, default=3,     help='0: Transformer_ge_mut_meth, 1: Transformer_ge_mut, 2: Transformer_meth_mut, 3: Transformer_meth_ge, 4: Transformer_ge, 5: Transformer_mut, 6: Transformer_meth')
+    parser.add_argument('--model', type=int, required=False, default=0,     help='0: Transformer_ge_mut_meth, 1: Transformer_ge_mut, 2: Transformer_meth_mut, 3: Transformer_meth_ge, 4: Transformer_ge, 5: Transformer_mut, 6: Transformer_meth')
     parser.add_argument('--train_batch', type=int, required=False, default=32,  help='Batch size training set')
     parser.add_argument('--val_batch', type=int, required=False, default=32, help='Batch size validation set')
     parser.add_argument('--test_batch', type=int, required=False, default=32, help='Batch size test set')
     parser.add_argument('--lr', type=float, required=False, default=1e-4, help='Learning rate')
-    parser.add_argument('--num_epoch', type=int, required=False, default=2, help='Number of epoch')
+    parser.add_argument('--num_epoch', type=int, required=False, default=200, help='Number of epoch')
     parser.add_argument('--log_interval', type=int, required=False, default=20, help='Log interval')
     parser.add_argument('--cuda_name', type=str, required=False, default="cuda:0", help='Cuda')
 
