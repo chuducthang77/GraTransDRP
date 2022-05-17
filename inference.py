@@ -5,13 +5,12 @@ from models.gat_gcn_transformer_meth_ge import GAT_GCN_Transformer_meth_ge
 from utils import *
 
 def predicting(model, device, loader):
-    model.eval()
     total_preds = torch.Tensor()
     total_labels = torch.Tensor()
     print('Make prediction for {} samples...'.format(len(loader.dataset)))
     with torch.no_grad():
         for data in loader:
-            data = data.to(device)
+            data = data
             
             output, _ = model(data)
 
