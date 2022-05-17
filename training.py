@@ -79,7 +79,7 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
 
     print('Learning rate: ', lr)
     print('Epochs: ', num_epoch)
-    test_drug = np.load('test_drug.npy')
+    test_drug = np.load('test_drug_mix.npy')
     test_drug_dict = {}
     temp = None
     for drug in test_drug:
@@ -87,7 +87,7 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
             temp = drug[0]
             test_drug_dict[drug[0]] = 1
         else:
-            test_drug_dict[drug[0]] = drug[1]
+            test_drug_dict[drug[0]] += 1
 
     for model in modeling:
         model_st = model.__name__
@@ -96,15 +96,15 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
         val_losses = []
         val_pearsons = []
         print('\nrunning on ', model_st + '_' + dataset )
-        processed_data_file_train    = 'data/processed/' + dataset + '_train_blind'+'.pt'
-        processed_data_file_val = 'data/processed/' + dataset + '_val_blind'+'.pt'
-        processed_data_file_test = 'data/processed/' + dataset + '_test_blind'+'.pt'
+        processed_data_file_train    = 'data/processed/' + dataset + '_train_mix'+'.pt'
+        processed_data_file_val = 'data/processed/' + dataset + '_val_mix'+'.pt'
+        processed_data_file_test = 'data/processed/' + dataset + '_test_mix'+'.pt'
         if ((not os.path.isfile(processed_data_file_train)) or (not os.path.isfile(processed_data_file_val)) or (not os.path.isfile(processed_data_file_test))):
             print('please run create_data.py to prepare data in pytorch format!')
         else:
-            train_data = TestbedDataset(root='data', dataset=dataset+'_train_blind')
-            val_data = TestbedDataset(root='data', dataset=dataset+'_val_blind')
-            test_data = TestbedDataset(root='data', dataset=dataset+'_test_blind')
+            train_data = TestbedDataset(root='data', dataset=dataset+'_train_mix')
+            val_data = TestbedDataset(root='data', dataset=dataset+'_val_mix')
+            test_data = TestbedDataset(root='data', dataset=dataset+'_test_mix')
             
             # make data PyTorch mini-batch processing ready
             train_loader = DataLoader(train_data, batch_size=train_batch, shuffle=True)
@@ -151,7 +151,7 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
                 # val_losses.append(ret[1])
                 # val_pearsons.append(ret[2])
 
-                #Reduce Learning rate on Plateau for the validation loss
+                # Reduce Learning rate on Plateau for the validation loss
                 # scheduler.step(ret[1])
 
                 # if ret[1]<best_mse:
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     parser.add_argument('--val_batch', type=int, required=False, default=32, help='Batch size validation set')
     parser.add_argument('--test_batch', type=int, required=False, default=32, help='Batch size test set')
     parser.add_argument('--lr', type=float, required=False, default=1e-4, help='Learning rate')
-    parser.add_argument('--num_epoch', type=int, required=False, default=1, help='Number of epoch')
+    parser.add_argument('--num_epoch', type=int, required=False, default=2, help='Number of epoch')
     parser.add_argument('--log_interval', type=int, required=False, default=20, help='Log interval')
     parser.add_argument('--cuda_name', type=str, required=False, default="cuda:0", help='Cuda')
 
