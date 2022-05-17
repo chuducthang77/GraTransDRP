@@ -128,9 +128,9 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
             test_drug_result = {}
 
             for epoch in range(num_epoch):
-                # train_loss = train(model, device, train_loader, optimizer, epoch+1, log_interval, model_st)
-                # G,P = predicting(model, device, val_loader, model_st)
-                # ret = [rmse(G,P),mse(G,P),pearson(G,P),spearman(G,P)]
+                train_loss = train(model, device, train_loader, optimizer, epoch+1, log_interval, model_st)
+                G,P = predicting(model, device, val_loader, model_st)
+                ret = [rmse(G,P),mse(G,P),pearson(G,P),spearman(G,P)]
                 G_test,P_test = predicting(model, device, test_loader, model_st)
                 ret_test = [rmse(G_test,P_test),mse(G_test,P_test),pearson(G_test,P_test),spearman(G_test,P_test)]
 
@@ -147,24 +147,24 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
                     test_drug_result[list(test_drug_dict.keys())[i]] = mse_arr[i]
                 test_drug_result = dict(sorted(test_drug_result.items(), key=lambda item: item[1]))
 
-                # train_losses.append(train_loss)
-                # val_losses.append(ret[1])
-                # val_pearsons.append(ret[2])
+                train_losses.append(train_loss)
+                val_losses.append(ret[1])
+                val_pearsons.append(ret[2])
 
                 # Reduce Learning rate on Plateau for the validation loss
-                # scheduler.step(ret[1])
+                scheduler.step(ret[1])
 
-                # if ret[1]<best_mse:
-                #     torch.save(model.state_dict(), model_file_name)
-                #     with open(result_file_name,'w') as f:
-                #         f.write(','.join(map(str,ret_test)))
-                #     best_epoch = epoch+1
-                #     best_mse = ret[1]
-                #     best_pearson = ret[2]
-                #     best_cust_mse = test_drug_result
-                #     print(' rmse improved at epoch ', best_epoch, '; best_mse:', best_mse,model_st,dataset)
-                # else:
-                #     print(' no improvement since epoch ', best_epoch, '; best_mse, best pearson:', best_mse, best_pearson, model_st, dataset)
+                if ret[1]<best_mse:
+                    torch.save(model.state_dict(), model_file_name)
+                    with open(result_file_name,'w') as f:
+                        f.write(','.join(map(str,ret_test)))
+                    best_epoch = epoch+1
+                    best_mse = ret[1]
+                    best_pearson = ret[2]
+                    best_cust_mse = test_drug_result
+                    print(' rmse improved at epoch ', best_epoch, '; best_mse:', best_mse,model_st,dataset)
+                else:
+                    print(' no improvement since epoch ', best_epoch, '; best_mse, best pearson:', best_mse, best_pearson, model_st, dataset)
             draw_loss(train_losses, val_losses, loss_fig_name)
             draw_pearson(val_pearsons, pearson_fig_name)
             draw_cust_mse(test_drug_result)
