@@ -166,7 +166,7 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
                     print(' no improvement since epoch ', best_epoch, '; best_mse, best pearson:', best_mse, best_pearson, model_st, dataset)
             draw_loss(train_losses, val_losses, loss_fig_name)
             draw_pearson(val_pearsons, pearson_fig_name)
-            draw_cust_mse(test_drug_result)
+            
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='train model')

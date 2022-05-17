@@ -62,5 +62,4 @@ for epoch in range(num_epoch):
 for i in range(len(test_drug_dict.keys())):
         test_drug_result[list(test_drug_dict.keys())[i]] /= num_epoch
 test_drug_result = dict(sorted(test_drug_result.items(), key=lambda item: item[1]))
-
-print(test_drug_result)
+draw_cust_mse(test_drug_result)
