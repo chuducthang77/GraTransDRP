@@ -4,7 +4,7 @@ import torch.nn as nn
 from models.gat_gcn_transformer_meth_ge import GAT_GCN_Transformer_meth_ge
 from utils import *
 
-def predicting(model, device, loader, model_st):
+def predicting(model, device, loader):
     model.eval()
     total_preds = torch.Tensor()
     total_labels = torch.Tensor()
@@ -12,15 +12,8 @@ def predicting(model, device, loader, model_st):
     with torch.no_grad():
         for data in loader:
             data = data.to(device)
-            #Non-variational autoencoder
-            if 'VAE' in model_st:
-                #For variation autoencoder
-                    output, _, decode, log_var, mu = model(data)
-            elif 'AE' in model_st:
-                output, _, decode = model(data)
-            #For non-variational autoencoder
-            else:
-                output, _ = model(data)
+            
+            output, _ = model(data)
 
             total_preds = torch.cat((total_preds, output.cpu()), 0)
             total_labels = torch.cat((total_labels, data.y.view(-1, 1).cpu()), 0)
@@ -42,7 +35,6 @@ for drug in test_drug:
 
 dataset = 'GDSC'
 test_batch = 32
-model_st = model.__name__
 num_epoch = 3
 test_drug_result = {}
 for i in range(len(test_drug_dict.keys())):
@@ -54,7 +46,7 @@ test_loader = DataLoader(test_data, batch_size=test_batch, shuffle=False)
 
 
 for epoch in range(num_epoch):
-    G_test,P_test = predicting(model, device, test_loader, model_st)
+    G_test,P_test = predicting(model, device, test_loader)
 
     mse_res = mse_cust(G_test,P_test)
     mse_arr = []
