@@ -161,7 +161,6 @@ def main(modeling, train_batch, val_batch, test_batch, lr, num_epoch, log_interv
                     best_epoch = epoch+1
                     best_mse = ret[1]
                     best_pearson = ret[2]
-                    best_cust_mse = test_drug_result
                     print(' rmse improved at epoch ', best_epoch, '; best_mse:', best_mse,model_st,dataset)
                 else:
                     print(' no improvement since epoch ', best_epoch, '; best_mse, best pearson:', best_mse, best_pearson, model_st, dataset)
