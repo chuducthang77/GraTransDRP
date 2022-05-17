@@ -22,44 +22,38 @@ model = GAT_GCN_Transformer_meth_ge()
 model.load_state_dict(torch.load('model_GAT_GCN_Transformer_meth_ge_GDSC.model'))
 model.eval()
 
-test_drug = np.load('test_drug_mix.npy')
-test_drug_dict = {}
-temp = None
-for drug in test_drug:
-    if temp != drug[0]:
-        temp = drug[0]
-        test_drug_dict[drug[0]] = 1
-    else:
-        test_drug_dict[drug[0]] += 1
+list_cell_mix_test = np.load('list_drug_mix_test.npy')
 
 dataset = 'GDSC'
 test_batch = 32
-num_epoch = 3
-test_drug_result = {}
-for i in range(len(test_drug_dict.keys())):
-    test_drug_result[list(test_drug_dict.keys())[i]] = 0
+num_epoch = 30
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 test_data = TestbedDataset(root='data', dataset=dataset+'_test_mix')
 test_loader = DataLoader(test_data, batch_size=test_batch, shuffle=False)
 
-
+test_drug_count = {}
+for i in range(len(list_cell_mix_test)):
+    if list_cell_mix_test[i] in test_drug_count:
+        test_drug_count[list_cell_mix_test[i]] += 1
+    else:
+        test_drug_count[list_cell_mix_test[i]] = 1
+        
+test_drug_result = {}
 for epoch in range(num_epoch):
     G_test,P_test = predicting(model, device, test_loader)
 
     mse_res = mse_cust(G_test,P_test)
-    mse_arr = []
-    for values in test_drug_dict.values():
-        temp_mse = 0
-        for i in range(int(values)):
-            temp_mse += mse_res[i]
-        temp_mse /= int(values)
-        mse_arr.append(temp_mse)
-
-    for i in range(len(test_drug_dict.keys())):
-        test_drug_result[list(test_drug_dict.keys())[i]] += mse_arr[i]
-
-for i in range(len(test_drug_dict.keys())):
-        test_drug_result[list(test_drug_dict.keys())[i]] /= num_epoch
+    for i in range(len(mse_res)):
+        if list_cell_mix_test[i] in test_drug_result:
+            test_drug_result[list_cell_mix_test[i]] += mse_res[i]
+        else:
+            test_drug_result[list_cell_mix_test[i]] = mse_res[i]
+    
+for key, value in test_drug_result.items():
+    test_drug_result[key] /= (test_drug_count[key] * num_epoch)
+    
 test_drug_result = dict(sorted(test_drug_result.items(), key=lambda item: item[1]))
+print(test_drug_result)
 draw_cust_mse(test_drug_result)

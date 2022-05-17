@@ -493,6 +493,7 @@ def save_mix_drug_cell_matrix(choice):
     size = int(xd.shape[0] * 0.8)
     size1 = int(xd.shape[0] * 0.9)
 
+    np.save('list_drug_mix_test', lst_drug[size1:])
     with open('list_drug_mix_test', 'wb') as fp:
         pickle.dump(lst_drug[size1:], fp)
         
